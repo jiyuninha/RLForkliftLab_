@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# RLForkliftLab_
-=======
 # RLForkliftLab
 
 ## Description
@@ -22,6 +19,7 @@ docker exec -it forklift-lab-ros2 bash
 1. **Ubuntu 22.04 & ROS Humble**
 2. **Docker**
 3. **NVIDIA-Docker toolkit**
+4. **Docker Compose**
 
 ## Run
 
@@ -29,9 +27,8 @@ docker exec -it forklift-lab-ros2 bash
 cd /home/{$USER}/RLForklift/docker
 
 ## 1. Enter the container.
-docker exec -it forklift-lab-ros2 bash
+docker exec -it forklift-lab-ros2 bashssssssss
 
 ## 2. Run a Custom Environment in Isaac Lab
 
 ## Related Resources
->>>>>>> v1
