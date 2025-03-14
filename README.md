@@ -19,10 +19,7 @@ docker exec -it forklift-lab-ros2 bash
 1. **Ubuntu 22.04 & ROS Humble**
 2. **Docker**
 3. **NVIDIA-Docker toolkit**
-<<<<<<< HEAD
-=======
 4. **Docker Compose**
->>>>>>> jiyun
 
 ## Run
 
@@ -30,11 +27,7 @@ docker exec -it forklift-lab-ros2 bash
 cd /home/{$USER}/RLForklift/docker
 
 ## 1. Enter the container.
-<<<<<<< HEAD
 docker exec -it forklift-lab-ros2 bash
-=======
-docker exec -it forklift-lab-ros2 bashssssssss
->>>>>>> jiyun
 
 ## 2. Run a Custom Environment in Isaac Lab
 
