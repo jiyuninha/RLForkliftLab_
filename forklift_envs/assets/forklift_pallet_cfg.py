@@ -7,18 +7,19 @@ from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.assets import   RigidObject, RigidObjectCfg
 
 from forklift_envs.envs.local_navigation.utils.articulation.articulation import ForkliftArticulation
-
+from forklift_envs.envs.local_navigation.utils.rigidobject.rigidobject import PalletRigidObject
 # Pallet Config
 
 _PALLET_USD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "palllets", "Pallet_A1.usd")
+                                "pallets", "Pallet_A1.usd")
 
 PALLET_CFG = RigidObjectCfg(
+    class_type=PalletRigidObject,
     spawn=sim_utils.UsdFileCfg(
         usd_path=_PALLET_USD_PATH,
     ),
     init_state=RigidObjectCfg.InitialStateCfg(
-        pos=(0,0, 0.0, 0.0), # random position, pose
+        pos=(0.0, 0.0, 0.0), # random position, pose
     ),
 )
 

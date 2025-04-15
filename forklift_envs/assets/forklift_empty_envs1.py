@@ -1,5 +1,5 @@
 # Copyright (c) 2025-2027, Inha University (SPARO Lab)
-# Author: Minho Lee
+# Author: Jiyun Lee
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -34,7 +34,7 @@ simulation_app = app_launcher.app
 import io
 import os
 import torch
-import numpy as np
+
 import omni
 
 # from isaaclab.envs import ManagerBasedRLEnv
@@ -42,8 +42,8 @@ import omni
 # import isaaclab.envs.mdp as mdp
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg, ArticulationCfg, RigidObjectCfg
-from isaaclab.actuators import actuator_pd, DCMotorCfg, IdealPDActuatorCfg
+from isaaclab.assets import AssetBaseCfg, ArticulationCfg
+from isaaclab.actuators import actuator_pd, DCMotorCfg, IdealPDActuatorCfg 
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
 from isaaclab.utils import configclass
@@ -62,24 +62,10 @@ FORKLIFT_USD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # 'back_left_roller', 'back_right_roller', 'front_left_roller', 'back_wheel_drive']
 ##
 
-WHEEL_JOINTS = ['back_wheel_swivel', 'front_right_roller', 'back_left_roller', 'back_right_roller', 'front_left_roller', 'back_wheel_drive']
+WHEEL_JOINTS = ['back_wheel_swivel', 'back_wheel_drive'] 
 LIFT_JOINT = ["lift_joint"]
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")# Copyright (c) 2025-2027, Inha University (SPARO Lab)
-
-
-# File paths
-PALETTE_USD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pallets", "Pallet_A1.usd")
-
-
-# Constraints
-FORKLIFT_RADIUS = 2.5  # 팔레트가 포크리프트 반경 내에서 생성되지 않도록 설정
-ENV_SPACING = 10  # 환경 간격
-MAX_ATTEMPTS = 50  # 무한 루프 방지를 위한 최대 시도 횟수
-
-# 팔레트의 크기를 조정하기 위해, 팔레트 생성 시 스케일을 설정합니다.
-PALETTE_SCALE = [0.01, 0.01, 0.01]
-
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ForkliftWheelActuator(actuator_pd.DCMotor):
     """Actuator for Forklift wheels"""
@@ -128,8 +114,7 @@ class ForkliftLiftActuator(actuator_pd.IdealPDActuator):
 @configclass
 class ForkliftSceneCfg(InteractiveSceneCfg):
     """Configuration for a simple scene with a Forklift robot."""
-    
-    # replicate_physics 속성 제거 (필요 없다면 이렇게 해도 문제 없음)
+
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
         spawn=sim_utils.GroundPlaneCfg()
@@ -163,21 +148,6 @@ class ForkliftSceneCfg(InteractiveSceneCfg):
             ),
         },
     )
-
-    # 팔레트 추가
-    pallet = RigidObjectCfg(
-        prim_path="{ENV_REGEX_NS}/Pallet",
-        spawn=sim_utils.UsdFileCfg(usd_path=PALETTE_USD_PATH, scale=PALETTE_SCALE)
-    )
-    
-    #  # 각 환경에 포크리프트와 팔레트가 함께 생성되도록 환경 간격을 조정
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     # 포크리프트와 팔레트가 동일한 위치에 배치되도록 설정
-    #     self.forklift.spawn = sim_utils.UsdFileCfg(usd_path=FORKLIFT_USD_PATH, position=(0, 0, 0))
-    #     self.palette.spawn = sim_utils.UsdFileCfg(usd_path=PALETTE_USD_PATH, position=(0, 0, 0))
-
-
 
 ##
 # Main function
