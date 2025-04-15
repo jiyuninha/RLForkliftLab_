@@ -45,6 +45,8 @@ cd /workspace/isaac_forklift/examples/01_train
 
 1. Set environment
 ![[Check] RL Env](figure/test2.png)
-2. Set train code
+2. Check articulation operation
+![[Check] Forklift articulation](figure/test6.gif)
+3. Set train code
 ![[Check] Train pipeline](figure/test9.gif)
 
