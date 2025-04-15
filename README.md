@@ -36,7 +36,7 @@ docker exec -it forklift-lab-ros2 bash
 cd /workspace/isaac_forklift/examples/01_train
 
 /workspace/isaaclab/isaaclab.sh -p train1.py 
+```
 
 ![[Check] Train pipeline](figure/test9.gif)
 
-## Related Resources
