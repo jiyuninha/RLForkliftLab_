@@ -31,6 +31,12 @@ docker exec -it forklift-lab-ros2 bash
 
 ## 
 
-## 2. Run a Custom Environment in Isaac Lab
+## 2. Run train code
+
+cd /workspace/isaac_forklift/examples/01_train
+
+/workspace/isaaclab/isaaclab.sh -p train1.py 
+
+![test9](/figure/test9.gif "툴팁 텍스트")
 
 ## Related Resources
