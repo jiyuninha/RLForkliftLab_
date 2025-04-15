@@ -37,6 +37,6 @@ cd /workspace/isaac_forklift/examples/01_train
 
 /workspace/isaaclab/isaaclab.sh -p train1.py 
 
-![test9](/figure/test9.gif "툴팁 텍스트")
+![test9](figure/test9.gif "[Check] Train pipeline")
 
 ## Related Resources
