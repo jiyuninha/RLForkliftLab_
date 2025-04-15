@@ -29,14 +29,22 @@ cd /home/{$USER}/RLForklift/docker
 ## 1. Enter the container.
 docker exec -it forklift-lab-ros2 bash
 
-## 
+## 2. Run environment
 
-## 2. Run train code
+cd /workspace/isaac_forklift/examples/00_create_envs
+
+/workspace/isaaclab/isaaclab.sh -p scene_test1.py 
+
+## 3. Run train code
 
 cd /workspace/isaac_forklift/examples/01_train
 
 /workspace/isaaclab/isaaclab.sh -p train1.py 
+
 ```
 
+1. Set environment
+![[Check] RL Env](figure/test2.png)
+2. Set train code
 ![[Check] Train pipeline](figure/test9.gif)
 
