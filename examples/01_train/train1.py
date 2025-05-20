@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser("Welcome to Isaac Lab: Omniverse Robotics Envir
 parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
-parser.add_argument("--num_envs", type=int, default=64, help="Number of environments to simulate.")
+parser.add_argument("--num_envs", type=int, default=4, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default="ForkliftEnv-v0", help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--agent", type=str, default="PPO", help="Name of the agent.")
@@ -136,6 +136,25 @@ from forklift_envs.envs.local_navigation.skrl import get_agent  # noqa: E402
 # SKRL 에이전트 설정을 파싱하는 함수
 from forklift_envs.utils.config import parse_skrl_cfg  # noqa: E402
 
+class CustomTrainer(SequentialTrainer):
+    def __init__(self, cfg, agents, env):
+        super().__init__(env=env, agents=agents, cfg=cfg)
+
+    def post_interaction(self):
+        # 기본 동작 유지
+        super().post_interaction()
+
+        # 센서 정보 출력 시도
+        try:
+            scene = self.env.unwrapped.scene
+            print("-------------------------------")
+            print("LF contact force:", scene["contact_forces_LF"].data.net_forces_w)
+            print("RF contact force:", scene["contact_forces_RF"].data.net_forces_w)
+            print("H contact force:", scene["contact_forces_H"].data.net_forces_w)
+            print("-------------------------------")
+        except Exception as e:
+            print("[WARNING] 센서 데이터 접근 실패:", e)
+            
 # train 함수:전체 학습 프로세스를 구성하는 메인 함수
 def train():
     # 시드 값 설정: 커멘드라인에서 주어지면 사용, 없으면 무작위로 생성
@@ -180,7 +199,7 @@ def train():
     # 지정된 에이전트 이름, 환경, 관측 및 행동 공간, 실험 설정을 기반으로 에이전트 생성
     agent = get_agent(args_cli.agent, env, observation_space, action_space, experiment_cfg, conv=True)
     # SequentialTrainer를 생성하여 에이전트와 환경을 인자로 전달, 학습 준비
-    trainer = SequentialTrainer(cfg=trainer_cfg, agents=agent, env=env)
+    trainer = CustomTrainer(cfg=trainer_cfg, agents=agent, env=env)
     # 학습 시작
     trainer.train()
 
