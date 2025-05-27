@@ -41,6 +41,11 @@ RUN echo "alias isaaclab=${ISAAC_LAB_PATH}/isaaclab.sh" >> ${HOME}/.bashrc && \
     echo "export TZ=$(date +%Z)" >> ${HOME}/.bashrc \
     echo "export TZ=$(date +%Z)" >> ${HOME}/.bashrc
 
+# Install PyTorch nightly with CUDA 12.8
+RUN ${ISAAC_SIM_PATH}/python.sh -m pip install --upgrade pip && \
+    ${ISAAC_SIM_PATH}/python.sh -m pip install --pre torch torchvision torchaudio \
+    --index-url https://download.pytorch.org/whl/nightly/cu128
+    
 # Configure /workspace/isaac_forklift as a safe directory, so that Weights & Biases can be used.
 RUN git config --global --add safe.directory /workspace/isaac_forklift
 

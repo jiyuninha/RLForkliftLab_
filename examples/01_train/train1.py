@@ -9,7 +9,6 @@ import carb
 import gymnasium as gym 
 from isaaclab.app import AppLauncher
 
-
 # add argparse arguments
 parser = argparse.ArgumentParser("Welcome to Isaac Lab: Omniverse Robotics Environments!")
 parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
@@ -137,41 +136,7 @@ from forklift_envs.envs.local_navigation.skrl import get_agent  # noqa: E402
 from forklift_envs.utils.config import parse_skrl_cfg  # noqa: E402
 
 import torch
-from tqdm import tqdm
-
-class ContactLoggingEnv:
-    def __init__(self, env):
-        self.env = env
-
-
-    def step(self, action):
-        obs, reward, terminated, truncated, info = self.env.step(action)
-
-        try:
-            scene = self.env.unwrapped.scene
-            lift = scene["contact_sensor_lift"].data.net_forces_w
-            body = scene["contact_sensor_body"].data.net_forces_w
-
-            lift_force = torch.norm(lift, dim=-1).squeeze(-1)
-            body_force = torch.norm(body, dim=-1).squeeze(-1)
-
-            contact_envs = torch.nonzero((lift_force > 0) | (body_force > 0), as_tuple=False).squeeze(-1)
-
-            if contact_envs.numel() > 0:
-                contact_ids = ", ".join(str(i.item()) for i in contact_envs)
-                tqdm.write(f"[SENSOR] 접촉된 환경: {contact_ids}")
-
-        except Exception as e:
-            tqdm.write(f"[SENSOR] 출력 실패: {e}")
-
-        return obs, reward, terminated, truncated, info
-
-    def reset(self):
-        return self.env.reset()
-
-    def __getattr__(self, name):
-        return getattr(self.env, name)
-              
+    
 # train 함수:전체 학습 프로세스를 구성하는 메인 함수
 def train():
     # 시드 값 설정: 커멘드라인에서 주어지면 사용, 없으면 무작위로 생성
@@ -191,8 +156,6 @@ def train():
     env = video_record(env, log_dir, args_cli.video, args_cli.video_length, args_cli.video_interval)
 #     # SKRL 벡터 환경 래퍼로 감싸서 병렬 실행 및 통합 인터페이스 제공
     env = SkrlVecEnvWrapper(env, ml_framework="torch")
-    #접촉 센서
-    env = ContactLoggingEnv(env)
     # print("SkrlVecEnvWrapper : ", env)
 #     # 재현성 확보를 위해 시드 설정
     set_seed(args_cli_seed if args_cli_seed is not None else experiment_cfg["seed"])

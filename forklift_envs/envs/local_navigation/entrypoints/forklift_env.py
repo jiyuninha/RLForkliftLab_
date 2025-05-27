@@ -1,4 +1,5 @@
 import torch
+from tqdm import tqdm
 from isaaclab.envs.common import VecEnvObs
 from isaaclab.envs.manager_based_rl_env import ManagerBasedRLEnv
 from isaaclab.terrains import TerrainImporter
@@ -100,6 +101,23 @@ class ForkliftEnv(ManagerBasedRLEnv):
         # -- compute observations
         # note: done after reset to get the correct observations for reset envs
         self.obs_buf = self.observation_manager.compute()
+        
+        try:
+            scene = self.scene  # ✅ self.env.unwrapped.scene ❌ → self.scene ✅
+            lift = scene["contact_sensor_lift"].data.net_forces_w
+            body = scene["contact_sensor_body"].data.net_forces_w
+
+            lift_force = torch.norm(lift, dim=-1).squeeze(-1)
+            body_force = torch.norm(body, dim=-1).squeeze(-1)
+
+            contact_envs = torch.nonzero((lift_force > 0) | (body_force > 0), as_tuple=False).squeeze(-1)
+
+            if contact_envs.numel() > 0:
+                contact_ids = ", ".join(str(i.item()) for i in contact_envs)
+                tqdm.write(f"[SENSOR] 접촉된 환경: {contact_ids}")
+
+        except Exception as e:
+            tqdm.write(f"[SENSOR] 출력 실패: {e}")
 
         # return observations, rewards, resets and extras
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras
