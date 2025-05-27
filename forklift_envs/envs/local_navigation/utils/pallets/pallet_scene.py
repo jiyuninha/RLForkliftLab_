@@ -5,6 +5,8 @@ from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.configclass import configclass
+from pxr import Usd, UsdGeom, UsdPhysics, PhysxSchema, Sdf
+
 
 PALLET_USD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "pallets", "Pallet_A1.usd")
@@ -26,3 +28,32 @@ class PalletSceneCfg(InteractiveSceneCfg):
               ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
     )
+    '''pallet_scene = AssetBaseCfg(
+    prim_path="{ENV_REGEX_NS}/Pallet",
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=PALLET_USD_PATH,
+        scale=[0.01, 0.01, 0.01],
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+        mass_props=sim_utils.MassPropertiesCfg(mass=70.0),
+        collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+        visual_material=sim_utils.PreviewSurfaceCfg(
+            diffuse_color=(0.21, 0.5, 0.73),
+            metallic=0.2
+            ),
+        ),
+    init_state=AssetBaseCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.0),
+        )
+    )'''
+
+    
+    '''pallet_scene = RigidObjectCfg(
+        prim_path="{ENV_REGEX_NS}/Pallet",
+        spawn=sim_utils.UsdFileCfg(usd_path=PALLET_USD_PATH, 
+              scale=[0.01, 0.01, 0.01],
+              rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+              mass_props=sim_utils.MassPropertiesCfg(),
+              collision_props=sim_utils.CollisionPropertiesCfg(),
+              ),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
+    )'''

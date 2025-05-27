@@ -33,6 +33,7 @@ from forklift_envs.envs.local_navigation.utils.pallets.commands_cfg import Targe
 from forklift_envs.envs.local_navigation.utils.pallets.pallets_importer import TargetPalletCommand  # noqa: F401
 
 
+
 from forklift_envs.assets.robots.forklift import FORKLIFT_CFG
 
 @configclass
@@ -57,8 +58,17 @@ class ForkliftSceneCfg(PalletSceneCfg):
 
     forklift = FORKLIFT_CFG.replace(prim_path="{ENV_REGEX_NS}/Forklift")
 
-    contact_sensor_lift = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Forklift/lift")
-    contact_sensor_body = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Forklift/body")
+    contact_sensor_lift = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Forklift/lift",
+        update_period=0.0,
+        history_length=6,
+        debug_vis=True,
+        filter_prim_paths_expr=["{ENV_REGEX_NS}/Pallet"])
+    contact_sensor_body = ContactSensorCfg(
+    	prim_path="{ENV_REGEX_NS}/Forklift/body",
+        update_period=0.0,
+        history_length=6,
+        debug_vis=True,
+        filter_prim_paths_expr=["{ENV_REGEX_NS}/Pallet"])
 
 
 
@@ -240,7 +250,7 @@ class ForkliftEnvCfg(ManagerBasedRLEnvCfg):
             friction_correlation_distance=0.025,
             friction_offset_threshold=0.04,
             bounce_threshold_velocity=2.0,
-        )
+        ),
     )
 
     # Basic Settings

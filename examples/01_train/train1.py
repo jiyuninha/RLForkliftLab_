@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser("Welcome to Isaac Lab: Omniverse Robotics Envir
 parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
-parser.add_argument("--num_envs", type=int, default=4, help="Number of environments to simulate.")
+parser.add_argument("--num_envs", type=int, default=64, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default="ForkliftEnv-v0", help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--agent", type=str, default="PPO", help="Name of the agent.")
@@ -136,25 +136,42 @@ from forklift_envs.envs.local_navigation.skrl import get_agent  # noqa: E402
 # SKRL 에이전트 설정을 파싱하는 함수
 from forklift_envs.utils.config import parse_skrl_cfg  # noqa: E402
 
-class CustomTrainer(SequentialTrainer):
-    def __init__(self, cfg, agents, env):
-        super().__init__(env=env, agents=agents, cfg=cfg)
+import torch
+class ContactLoggingEnv:
+    def __init__(self, env):
+        self.env = env
 
-    def post_interaction(self):
-        # 기본 동작 유지
-        super().post_interaction()
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
 
-        # 센서 정보 출력 시도
         try:
             scene = self.env.unwrapped.scene
-            print("-------------------------------")
-            print("LF contact force:", scene["contact_forces_LF"].data.net_forces_w)
-            print("RF contact force:", scene["contact_forces_RF"].data.net_forces_w)
-            print("H contact force:", scene["contact_forces_H"].data.net_forces_w)
-            print("-------------------------------")
+            lift = scene["contact_sensor_lift"].data.net_forces_w  # shape: (num_envs, 1, 3)
+            body = scene["contact_sensor_body"].data.net_forces_w
+
+            # 힘 벡터의 norm을 구해서 크기가 0보다 큰 환경만 필터링
+            lift_force = torch.norm(lift, dim=-1).squeeze(-1)     # shape: (num_envs,)
+            body_force = torch.norm(body, dim=-1).squeeze(-1)
+
+            # 접촉 감지된 환경의 인덱스 찾기
+            contact_envs = torch.nonzero((lift_force > 0) | (body_force > 0), as_tuple=False).squeeze(-1)
+
+            for idx in contact_envs:
+                print(f"[SENSOR] 접촉 감지됨 - 환경: {idx.item()}")
+                print(f"  Lift: {lift[idx]}")
+                print(f"  Body: {body[idx]}")
+
         except Exception as e:
-            print("[WARNING] 센서 데이터 접근 실패:", e)
-            
+            print("[SENSOR] 출력 실패:", e)
+
+        return obs, reward, terminated, truncated, info
+
+    def reset(self):
+        return self.env.reset()
+
+    def __getattr__(self, name):
+        return getattr(self.env, name)
+              
 # train 함수:전체 학습 프로세스를 구성하는 메인 함수
 def train():
     # 시드 값 설정: 커멘드라인에서 주어지면 사용, 없으면 무작위로 생성
@@ -174,6 +191,8 @@ def train():
     env = video_record(env, log_dir, args_cli.video, args_cli.video_length, args_cli.video_interval)
 #     # SKRL 벡터 환경 래퍼로 감싸서 병렬 실행 및 통합 인터페이스 제공
     env = SkrlVecEnvWrapper(env, ml_framework="torch")
+    #접촉 센서
+    env = ContactLoggingEnv(env)
     # print("SkrlVecEnvWrapper : ", env)
 #     # 재현성 확보를 위해 시드 설정
     set_seed(args_cli_seed if args_cli_seed is not None else experiment_cfg["seed"])
@@ -199,7 +218,7 @@ def train():
     # 지정된 에이전트 이름, 환경, 관측 및 행동 공간, 실험 설정을 기반으로 에이전트 생성
     agent = get_agent(args_cli.agent, env, observation_space, action_space, experiment_cfg, conv=True)
     # SequentialTrainer를 생성하여 에이전트와 환경을 인자로 전달, 학습 준비
-    trainer = CustomTrainer(cfg=trainer_cfg, agents=agent, env=env)
+    trainer = SequentialTrainer(cfg=trainer_cfg, agents=agent, env=env)
     # 학습 시작
     trainer.train()
 
