@@ -32,7 +32,7 @@ sys.argv = [sys.argv[0]] + hydra_args
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
-
+os.environ["WANDB_MODE"] = "disabled"
 from isaaclab_rl.skrl import SkrlVecEnvWrapper 
 
 # Omniverse의 설정을 가져와 ray tracing 관련 설정을 조정
@@ -137,32 +137,32 @@ from forklift_envs.envs.local_navigation.skrl import get_agent  # noqa: E402
 from forklift_envs.utils.config import parse_skrl_cfg  # noqa: E402
 
 import torch
+from tqdm import tqdm
+
 class ContactLoggingEnv:
     def __init__(self, env):
         self.env = env
+
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
 
         try:
             scene = self.env.unwrapped.scene
-            lift = scene["contact_sensor_lift"].data.net_forces_w  # shape: (num_envs, 1, 3)
+            lift = scene["contact_sensor_lift"].data.net_forces_w
             body = scene["contact_sensor_body"].data.net_forces_w
 
-            # 힘 벡터의 norm을 구해서 크기가 0보다 큰 환경만 필터링
-            lift_force = torch.norm(lift, dim=-1).squeeze(-1)     # shape: (num_envs,)
+            lift_force = torch.norm(lift, dim=-1).squeeze(-1)
             body_force = torch.norm(body, dim=-1).squeeze(-1)
 
-            # 접촉 감지된 환경의 인덱스 찾기
             contact_envs = torch.nonzero((lift_force > 0) | (body_force > 0), as_tuple=False).squeeze(-1)
 
-            for idx in contact_envs:
-                print(f"[SENSOR] 접촉 감지됨 - 환경: {idx.item()}")
-                print(f"  Lift: {lift[idx]}")
-                print(f"  Body: {body[idx]}")
+            if contact_envs.numel() > 0:
+                contact_ids = ", ".join(str(i.item()) for i in contact_envs)
+                tqdm.write(f"[SENSOR] 접촉된 환경: {contact_ids}")
 
         except Exception as e:
-            print("[SENSOR] 출력 실패:", e)
+            tqdm.write(f"[SENSOR] 출력 실패: {e}")
 
         return obs, reward, terminated, truncated, info
 
