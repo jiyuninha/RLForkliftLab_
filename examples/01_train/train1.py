@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser("Welcome to Isaac Lab: Omniverse Robotics Envir
 parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
-parser.add_argument("--num_envs", type=int, default=64, help="Number of environments to simulate.")
+parser.add_argument("--num_envs", type=int, default=128, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default="ForkliftEnv-v0", help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--agent", type=str, default="PPO", help="Name of the agent.")
@@ -31,7 +31,8 @@ sys.argv = [sys.argv[0]] + hydra_args
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
-os.environ["WANDB_MODE"] = "disabled"
+os.environ["WANDB_MODE"] = "online"
+
 from isaaclab_rl.skrl import SkrlVecEnvWrapper 
 
 # Omniverse의 설정을 가져와 ray tracing 관련 설정을 조정

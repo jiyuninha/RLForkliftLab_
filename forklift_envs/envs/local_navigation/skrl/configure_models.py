@@ -1,8 +1,7 @@
 from gymnasium.spaces.box import Box
 from isaaclab.envs import ManagerBasedRLEnv
 
-from forklift_envs.envs.local_navigation.skrl.models import (Critic, DeterministicActor, DeterministicNeuralNetwork,
-                                                             DeterministicNeuralNetworkConv, GaussianNeuralNetwork)
+from forklift_envs.envs.local_navigation.skrl.models import (DeterministicNeuralNetwork,GaussianNeuralNetwork)
 
 
 def get_models(agent: str, env: ManagerBasedRLEnv, observation_space: Box, action_space: Box, conv: bool = False):
@@ -39,7 +38,7 @@ def get_model_gaussian(env: ManagerBasedRLEnv, observation_space: Box, action_sp
     models = {}
     encoder_input_size = env.unwrapped.observation_manager.group_obs_term_dim["policy"][-1][0]
 
-    mlp_input_size = 5
+    mlp_input_size = 5 # Number of features in the observation space
 
     models["policy"] = GaussianNeuralNetwork(
         observation_space=observation_space,

@@ -23,13 +23,13 @@ class AckermannActionCfg(ActionTermCfg):
     offset: tuple[float, float] = 0.0
     """The offset of the action term."""
 
-    wheelbase_length: float = MISSING
+    wheelbase_length: float = 1.5
     """The distance between the front and rear wheels."""
 
-    middle_wheel_distance: float = MISSING
+    middle_wheel_distance: float = 0.8
     """The distance between the middle wheels."""
 
-    rear_and_front_wheel_distance: float = MISSING
+    rear_and_front_wheel_distance: float = 1.6
     """The distance between the rear and front wheels."""
 
     wheel_radius: float = MISSING

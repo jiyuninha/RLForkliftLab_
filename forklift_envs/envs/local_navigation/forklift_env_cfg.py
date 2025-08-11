@@ -31,7 +31,7 @@ import forklift_envs.envs.local_navigation.mdp as mdp
 from forklift_envs.envs.local_navigation.utils.pallets.pallet_scene import PalletSceneCfg  # noqa: F401
 from forklift_envs.envs.local_navigation.utils.pallets.commands_cfg import TargetPalletCommandCfg  # noqa: F401
 from forklift_envs.envs.local_navigation.utils.pallets.pallets_importer import TargetPalletCommand  # noqa: F401
-
+from forklift_envs.envs.local_navigation.utils.articulation.articulation import ForkliftArticulation
 
 
 from forklift_envs.assets.robots.forklift import FORKLIFT_CFG
@@ -56,7 +56,10 @@ class ForkliftSceneCfg(PalletSceneCfg):
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
     )   
 
-    forklift = FORKLIFT_CFG.replace(prim_path="{ENV_REGEX_NS}/Forklift")
+    forklift = FORKLIFT_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/Forklift",
+        class_type=ForkliftArticulation
+    )
 
     contact_sensor_lift = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Forklift/lift",
         update_period=0.0,
@@ -69,6 +72,20 @@ class ForkliftSceneCfg(PalletSceneCfg):
         history_length=6,
         debug_vis=True,
         filter_prim_paths_expr=["{ENV_REGEX_NS}/Pallet"])
+    
+    terrain: TerrainImporterCfg = TerrainImporterCfg(
+        prim_path="/World/ground",
+        terrain_type="plane",
+        collision_group=-1,
+        physics_material=sim_utils.RigidBodyMaterialCfg(
+            friction_combine_mode="average",
+            restitution_combine_mode="average",
+            static_friction=1.0,
+            dynamic_friction=1.0,
+            restitution=0.0,
+        ),
+        debug_vis=False,
+    )
 
 
 
@@ -83,14 +100,16 @@ class ActionsCfg:
 
 @configclass
 class ObservationCfg:
-    """Observation configuration for the task."""
+    print("Observation")
 
     @configclass
     class PolicyCfg(ObsGroup):
         """ Policy """    
         actions = ObsTerm(func=mdp.last_action)
-        distance = ObsTerm(func=mdp.distance_to_target_euclidean, params={
-                           "command_name": "target_pose"}, scale=0.11)
+        distance = ObsTerm(func=mdp.distance_to_target_euclidean, 
+                           params={
+                                    "command_name": "target_pose",
+                                    }, scale=0.11)
         heading = ObsTerm(
             func=mdp.angle_to_target_observation,
             params={
@@ -100,14 +119,11 @@ class ObservationCfg:
         )
         angle_diff = ObsTerm(
             func=mdp.angle_diff,
-            params={"command_name": "target_pose"},
+            params={
+                "command_name": "target_pose",
+                },
             scale=1 / math.pi
         )
-        # height_scan = ObsTerm(
-        #     func=mdp.height_scan_rover,
-        #     scale=1,
-        #     params={"sensor_cfg": SceneEntityCfg(name="height_scanner")},
-        # )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -118,67 +134,82 @@ class ObservationCfg:
 
 @configclass
 class RewardsCfg:
-    """Reward"""
-    # distance_to_target = RewTerm(
-    #     func=mdp.distance_to_target_reward,
-    #     weight=5.0,
-    #     params={"command_name": "target_pose"},
-    # )
-    # reached_target = RewTerm(
-    #     func=mdp.reached_target,
-    #     weight=5.0,
-    #     params={"command_name": "target_pose", "threshold": 0.18},
-    # )
-    # oscillation = RewTerm(
-    #     func=mdp.oscillation_penalty,
-    #     weight=-0.05,
-    #     params={},
-    # )
-    # angle_to_target = RewTerm(
-    #     func=mdp.angle_to_target_penalty,
-    #     weight=-1.5,
-    #     params={"command_name": "target_pose"},
-    # )
-    # heading_soft_contraint = RewTerm(
-    #     func=mdp.heading_soft_contraint,
-    #     weight=-0.5,
-    #     params={"asset_cfg": SceneEntityCfg(name="robot")},
-    # )
-    # collision = RewTerm(
-    #     func=mdp.collision_penalty,
-    #     weight=-3.0,
-    #     params={"sensor_cfg": SceneEntityCfg(
-    #         "contact_sensor"), "threshold": 1.0},
-    # )
-    # far_from_target = RewTerm(
-    #     func=mdp.far_from_target_reward,
-    #     weight=-2.0,
-    #     params={"command_name": "target_pose", "threshold": 11.0},
-    # )
-    # angle_diff = RewTerm(
-    #     func=mdp.angle_to_goal_reward,
-    #     weight=5.0,
-    #     params={"command_name": "target_pose"},
-    # )
+    print("Reward")
+    distance_to_target = RewTerm(
+        func=mdp.distance_to_target_reward,
+        weight=5.0,
+        params={
+            "command_name": "target_pose",
+        },
+    )
+    reached_target = RewTerm(
+        func=mdp.reached_target,
+        weight=5.0,
+        params={
+            "command_name": "target_pose", 
+            "distance_threshold": 0.1,  # 0.8m
+            "angle_threshold": 0.1,  # ~5.7 degrees
+        },
+    )
+    angle_to_target = RewTerm(
+        func=mdp.angle_to_target_penalty,
+        weight=-1.5,
+        params={
+            "command_name": "target_pose",
+        },
+    )
+    heading_soft_contraint = RewTerm(
+        func=mdp.heading_soft_contraint,
+        weight=-0.5,
+        params={
+            "asset_cfg": SceneEntityCfg(name="forklift")
+        },
+    )
+    far_from_target = RewTerm(
+        func=mdp.far_from_target_reward,
+        weight=-2.0,
+        params={ 
+            "command_name": "target_pose",
+            "distance_threshold": 10.0,  # 5m
+        },
+    )
+    angle_diff = RewTerm(
+        func=mdp.angle_to_goal_reward,
+        weight=5.0,
+        params={
+            "command_name": "target_pose", 
+        },
+    )
 
 
 @configclass
 class TerminationsCfg:
-    """Termination conditions for the task."""
+    print("Termination")
 
-    # time_limit = DoneTerm(func=mdp.time_out, time_out=True)
-    # is_success = DoneTerm(
-    #     func=mdp.is_success,
-    #     params={"command_name": "target_pose", "threshold": 0.18},
-    # )
-    # far_from_target = DoneTerm(
-    #     func=mdp.far_from_target,
-    #     params={"command_name": "target_pose", "threshold": 11.0},
+    time_limit = DoneTerm(func=mdp.time_out, time_out=True)
+    is_success = DoneTerm(
+        func=mdp.is_success,
+        params={
+            "command_name": "target_pose", 
+            "distance_threshold": 0.1, 
+            "angle_threshold": 0.1},
+    )
+    far_from_target = DoneTerm(
+        func=mdp.far_from_target,
+        params={ 
+            "command_name": "target_pose",
+            "distance_threshold": 10.0
+        },
+    )
+    # collision = DoneTerm(
+    #     func=mdp.collision_with_obstacles,
+    #     params={"sensor_cfg": SceneEntityCfg(
+    #         "contact_sensor_lift"), "threshold": 1.0},
     # )
     # collision = DoneTerm(
     #     func=mdp.collision_with_obstacles,
     #     params={"sensor_cfg": SceneEntityCfg(
-    #         "contact_sensor"), "threshold": 1.0},
+    #         "contact_sensor_body"), "threshold": 1.0},
     # )
 
 
@@ -186,13 +217,12 @@ class TerminationsCfg:
 @configclass
 class CommandsCfg:
     """Command terms for the MDP."""
-
     target_pose = TargetPalletCommandCfg(
         class_type=TargetPalletCommand,  # TerrainBasedPositionCommandCustom,
         asset_name="forklift",
         rel_standing_envs=0.0,
         simple_heading=False,
-        resampling_time_range=(150.0, 150.0),
+        resampling_time_range=(0.0, 0.0),
         ranges=TargetPalletCommandCfg.Ranges(
             heading=(-math.pi, math.pi)),
         debug_vis=True,
@@ -202,20 +232,29 @@ class CommandsCfg:
 @configclass
 class EventCfg:
     """Randomization configuration for the task."""
-    # startup_state = RandTerm(
-    #     func=mdp.reset_root_state_rover,
+    # startup_state = EventTerm(
+    #     func=mdp.reset_root_state_pallet_target,
     #     mode="startup",
     #     params={
-    #         "asset_cfg": SceneEntityCfg(name="robot"),
+    #         "pallet_cfg": SceneEntityCfg(name="pallet_scene"),
+    #         "target_cfg": SceneEntityCfg(name="target")
     #     },
     # )
-    # reset_state = EventTerm(
-    #     func=mdp.reset_root_state_rover,
-    #     mode="reset",
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(name="robot"),
-    #     },
-    # )
+    reset_forklift = EventTerm(
+        func=mdp.reset_root_state_forklift,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg(name="forklift"),
+        },
+    )
+    reset_pallet = EventTerm(
+        func=mdp.reset_root_state_pallet_target,
+        mode="reset",
+        params={
+            "pallet_cfg": SceneEntityCfg(name="pallet_scene"),
+            "target_cfg": SceneEntityCfg(name="target")
+        },
+    )
 
 
 # @configclass
@@ -230,28 +269,42 @@ class ForkliftEnvCfg(ManagerBasedRLEnvCfg):
 
     # Create scene
     scene: ForkliftSceneCfg = ForkliftSceneCfg(
-        num_envs=64, env_spacing=10.0, replicate_physics=False)
+        num_envs=128, env_spacing=10.0, replicate_physics=False)
 
     # Setup PhysX Settings
     sim: SimCfg = SimCfg(
         physx=PhysxCfg(
             enable_stabilization=True,
-            gpu_max_rigid_contact_count=8388608,
-            gpu_max_rigid_patch_count=262144,
-            gpu_found_lost_pairs_capacity=2**21,
-            gpu_found_lost_aggregate_pairs_capacity=2**25,  # 2**21,
-            gpu_total_aggregate_pairs_capacity=2**21,   # 2**13,
-            gpu_max_soft_body_contacts=1048576,
+            gpu_max_rigid_contact_count=2**20,
+            gpu_max_rigid_patch_count=2**18,
+            gpu_found_lost_pairs_capacity=2**20,
+            gpu_found_lost_aggregate_pairs_capacity=2**20,  # 2**21,
+            gpu_total_aggregate_pairs_capacity=2**20,   # 2**13,
+            gpu_max_soft_body_contacts=2**20,
             gpu_max_particle_contacts=1048576,
-            gpu_heap_capacity=67108864,
-            gpu_temp_buffer_capacity=16777216,
+            gpu_heap_capacity=2**26,
+            gpu_temp_buffer_capacity=2**24,
             gpu_max_num_partitions=8,
             gpu_collision_stack_size=2**28,
             friction_correlation_distance=0.025,
             friction_offset_threshold=0.04,
             bounce_threshold_velocity=2.0,
-        ),
+        )
     )
+    # print("ForkliftEnvCfg")
+    # terrain: TerrainImporterCfg = TerrainImporterCfg(
+    #     prim_path="/World/ground",
+    #     terrain_type="plane",
+    #     collision_group=-1,
+    #     physics_material=sim_utils.RigidBodyMaterialCfg(
+    #         friction_combine_mode="average",
+    #         restitution_combine_mode="average",
+    #         static_friction=1.0,
+    #         dynamic_friction=1.0,
+    #         restitution=0.0,
+    #     ),
+    #     debug_vis=False,
+    # )
 
     # Basic Settings
     observations: ObservationCfg = ObservationCfg()
@@ -268,7 +321,9 @@ class ForkliftEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 1 / 30.0
         self.decimation = 6
         self.episode_length_s = 150
-        self.viewer.eye = (-6.0, -6.0, 3.5)
+        self.viewer.eye = (-30.0, -30.0, 10.0)
+        self.viewer.lookat = (-13.0, -13.0, 0.0)
+
 
     #     # update sensor periods
     #     if self.scene.height_scanner is not None:

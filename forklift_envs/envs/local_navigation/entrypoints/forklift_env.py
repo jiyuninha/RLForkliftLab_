@@ -1,8 +1,11 @@
 import torch
 from tqdm import tqdm
+
+import isaaclab.sim as sim_utils
 from isaaclab.envs.common import VecEnvObs
 from isaaclab.envs.manager_based_rl_env import ManagerBasedRLEnv
-from isaaclab.terrains import TerrainImporter
+from isaaclab.terrains import TerrainImporter, TerrainImporterCfg
+
 
 from forklift_envs.envs.local_navigation.forklift_env_cfg import ForkliftEnvCfg
 
@@ -20,10 +23,9 @@ class ForkliftEnv(ManagerBasedRLEnv):
         super().__init__(cfg, **kwargs)
         env_ids = torch.arange(self.num_envs, device=self.device)
 
-        # Get the terrain and change the origin
         # terrain: TerrainImporter = self.scene.terrain
-        # terrain.env_origins[env_ids, 0] += 100
-        # terrain.env_origins[env_ids, 1] += 100
+        # terrain.env_origins[env_ids, 0] += 8
+        # terrain.env_origins[env_ids, 1] += 8
 
         self.global_step_counter = 0
 
@@ -62,6 +64,7 @@ class ForkliftEnv(ManagerBasedRLEnv):
             A tuple containing the observations, rewards, resets (terminated and truncated) and extras.
         """
         self.global_step_counter += 1
+        # print(f"[DEBUG] step {self.global_step_counter}, raw actions:\n{action}")
         # process actions
         self.action_manager.process_action(action)
         # perform physics stepping
@@ -102,22 +105,24 @@ class ForkliftEnv(ManagerBasedRLEnv):
         # note: done after reset to get the correct observations for reset envs
         self.obs_buf = self.observation_manager.compute()
         
-        try:
-            scene = self.scene  # ✅ self.env.unwrapped.scene ❌ → self.scene ✅
-            lift = scene["contact_sensor_lift"].data.net_forces_w
-            body = scene["contact_sensor_body"].data.net_forces_w
+        # Check contact_sensor data
+        # try:
+        #     scene = self.scene  # ✅ self.env.unwrapped.scene ❌ → self.scene ✅
+        #     lift = scene["contact_sensor_lift"].data.net_forces_w
+        #     body = scene["contact_sensor_body"].data.net_forces_w
 
-            lift_force = torch.norm(lift, dim=-1).squeeze(-1)
-            body_force = torch.norm(body, dim=-1).squeeze(-1)
+        #     lift_force = torch.norm(lift, dim=-1).squeeze(-1)
+        #     body_force = torch.norm(body, dim=-1).squeeze(-1)
 
-            contact_envs = torch.nonzero((lift_force > 0) | (body_force > 0), as_tuple=False).squeeze(-1)
+        #     contact_envs = torch.nonzero((lift_force > 0) | (body_force > 0), as_tuple=False).squeeze(-1)
 
-            if contact_envs.numel() > 0:
-                contact_ids = ", ".join(str(i.item()) for i in contact_envs)
-                tqdm.write(f"[SENSOR] 접촉된 환경: {contact_ids}")
+        #     if contact_envs.numel() > 0:
+        #         contact_ids = ", ".join(str(i.item()) for i in contact_envs)
+        #         tqdm.write(f"[SENSOR] 접촉된 환경: {contact_ids}")
 
-        except Exception as e:
-            tqdm.write(f"[SENSOR] 출력 실패: {e}")
+        # except Exception as e:
+        #     tqdm.write(f"[SENSOR] 출력 실패: {e}")
 
         # return observations, rewards, resets and extras
+        # print("extra ", self.extra)
         return self.obs_buf, self.reward_buf, self.reset_terminated, self.reset_time_outs, self.extras

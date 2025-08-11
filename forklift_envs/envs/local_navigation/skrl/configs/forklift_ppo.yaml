@@ -2,27 +2,25 @@ seed: 42
 
 # Models are instantiated using skrl's model instantiator utility
 # https://skrl.readthedocs.io/en/develop/modules/skrl.utils.model_instantiators.html
+
 models:
   separate: False
   policy:  # see skrl.utils.model_instantiators.gaussian_model for parameter details
-    clip_actions: True
-    clip_log_std: True
-    min_log_std: -20.0
-    max_log_std: 2.0
-    input_shape: "Shape.STATES"
-    hiddens: [32, 32]
-    hidden_activation: ["leaky_relu", "leaky_relu", "leaky_relu"]
-    output_shape: "Shape.ACTIONS"
-    output_activation: "tanh"
-    output_scale: 1.0
+    type: "GaussianPolicyConv"
+    params:
+      mlp_input_size: 5
+      mlp_layers: [256, 160, 128]
+      mlp_activation: "leaky_relu"
+      encoder_layers: [8, 16, 32, 64]
+      encoder_activation: "leaky_relu"
   value:  # see skrl.utils.model_instantiators.deterministic_model for parameter details
-    clip_actions: False
-    input_shape: "Shape.STATES"
-    hiddens: [32, 32]
-    hidden_activation: ["leaky_relu", "leaky_relu", "leaky_relu"]
-    output_shape: "Shape.ONE"
-    output_activation: ""
-    output_scale: 1.0
+    type: "ValueNetworkConv"
+    params:
+      mlp_input_size: 3
+      mlp_layers: [256, 160, 128]
+      mlp_activation: "leaky_relu"
+      encoder_layers: [8, 16, 32, 64]
+      encoder_activation: "leaky_relu"
 
 
 #   learning_rate_scheduler: "KLAdaptiveRL"
@@ -32,10 +30,17 @@ agent:
   mini_batches: 60
   discount_factor: 0.99
   lambda: 0.95
-  learning_rate: 1.e-4
+  learning_rate: 1.e-3
 
-  #learning_rate_scheduler: "None"
-  #learning_rate_scheduler_kwargs: null
+  # learning_rate_scheduler: "KLAdaptiveRL"
+  # learning_rate_scheduler_kwargs:
+  #   kl_threshold: 0.01   # 기본 0.008 대신 원하는 값으로
+  #   min_lr:     1.e-6     # (선택) 하한
+  #   max_lr:     1.e-2     # (선택) 상한
+  #   kl_factor:  2        # (선택) threshold 조정 배수
+  #   lr_factor:  1.5      # (선택) lr 조정 배수
+  #   verbose:    True    # (선택) 디버그 메시지 출력
+
   #state_preprocessor: "None"
   #state_preprocessor_kwargs: null
   #value_preprocessor: "None"
@@ -46,17 +51,17 @@ agent:
   ratio_clip: 0.2
   value_clip: 0.2
   clip_predicted_values: True
-  entropy_loss_scale: 0.0
+  entropy_loss_scale: 0.01
   value_loss_scale: 1.0
   kl_threshold: 0.008
   #rewards_shaper_scale: null
   # logging and checkpoint
   experiment:
     directory: "forklift"
-    experiment_name: "test1"
+    experiment_name: "DEMO"
     write_interval: 40
     checkpoint_interval: 400
     wandb: True             # whether to use Weights & Biases
 
 trainer:
-  timesteps: 1000000
+  timesteps: 100000

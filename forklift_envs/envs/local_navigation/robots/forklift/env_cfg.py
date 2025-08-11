@@ -20,11 +20,11 @@ class TriCycleForkliftEnvCfg(ForkliftEnvCfg):
         # Define parameters for the Ackermann kinematics.s
         self.actions.actions = mdp.AckermannActionCfg(
             asset_name="forklift",
-            wheelbase_length=0.849,
-            middle_wheel_distance=0.894,
-            rear_and_front_wheel_distance=0.77,
-            wheel_radius=0.1,
-            min_steering_radius=0.8,
+            wheelbase_length=1.5,
+            middle_wheel_distance=0.8,
+            rear_and_front_wheel_distance=1.6,
+            wheel_radius=0.2,
+            min_steering_radius=0.1,
             steering_joint_names=[".*back_wheel_swivel"],
             drive_joint_names=[".*back_wheel_drive"],
             offset=-0.0135

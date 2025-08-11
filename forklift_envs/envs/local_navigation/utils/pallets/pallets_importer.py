@@ -1,85 +1,74 @@
 from typing import Sequence
-
-import random
-import math
 import torch
-
-from pxr import Sdf, Usd, UsdGeom, Gf, UsdPhysics, PhysxSchema, Tf
+import math
+import random
+from pxr import UsdGeom, Gf, Usd
 import omni.usd
 import isaaclab.sim as sim_utils
-from isaacsim.core.prims import XFormPrim
-
-from isaaclab.markers import VisualizationMarkers
-from isaaclab.markers.visualization_markers import VisualizationMarkersCfg
-
-# Import Pallet Scene 
-
-
-# Visualization Marker Configuration
-SPHERE_MARKER_CFG = VisualizationMarkersCfg(
-    markers={
-        "sphere": sim_utils.SphereCfg(
-            radius=0.2,
-            visual_material=sim_utils.PreviewSurfaceCfg(
-                diffuse_color=(1.0, 0.0, 0.0)
-            ),
-        ),
-    }
-)
-
 from isaaclab.envs import ManagerBasedEnv
 from isaaclab.managers import CommandTerm
-from isaaclab.assets import AssetBaseCfg, Articulation
-from isaaclab.assets.articulation import ArticulationCfg
+from isaaclab.assets import Articulation
 from isaaclab.utils.math import quat_from_euler_xyz, quat_rotate_inverse, wrap_to_pi, yaw_quat
-from isaaclab.markers.config import GREEN_ARROW_X_MARKER_CFG
-from isaaclab.terrains import TerrainImporter, TerrainImporterCfg
+
+# --- Quaternion and angle utility functions ---
+
+def wrap_to_pi(x: torch.Tensor) -> torch.Tensor:
+    return ((x + math.pi) % (2 * math.pi)) - math.pi
 
 
-# Helper Functions (moved outside the class)
-def quat_from_yaw():
-    """Generate a random quaternion based on a yaw angle between -90° and 90°."""
-    y = random.uniform(-math.pi/2, math.pi/2)
-    w = math.cos(y / 2)
-    z = math.sin(y / 2)
-    return Gf.Quatd(w, Gf.Vec3d(0, 0, z))
+# def yaw_quat(yaw: torch.Tensor) -> torch.Tensor:
+#     half  = yaw * 0.5
+#     cos_h = torch.cos(half)
+#     sin_h = torch.sin(half)
+#     zeros = torch.zeros_like(cos_h)
+#     return torch.stack([cos_h, zeros, zeros, sin_h], dim=-1)
 
-def cal(distance, yaw):
-    """
-    Calculate the x and y offsets given a distance and a yaw angle (in degrees).
-    """
-    dx = math.sin(math.radians(yaw)) * distance
-    dy = math.cos(math.radians(180 - yaw)) * distance
-    return (dx, dy)
 
-def decide(s0, s1, distance, yaw, pallet_offset=False):
-    """
-    s0: Forklift's (x, y) position.
-    s1: Pallet's (x, y) position.
-    
-    Calculate two candidate goal points based on the pallet's yaw and return the one
-    that is closer to the forklift.
-    """
-    if pallet_offset:
-        distance += 0.4
-    a = cal(distance, yaw)
-    goal_point1 = (s1[0] - a[0], s1[1] - a[1])
-    goal_point2 = (s1[0] + a[0], s1[1] + a[1])
-    distance1 = math.dist(goal_point1, s0)
-    distance2 = math.dist(goal_point2, s0)
-    return goal_point1 if distance1 < distance2 else goal_point2
+def quat_conjugate(q: torch.Tensor) -> torch.Tensor:
+    orig_shape = q.shape
+    q_flat    = q.reshape(-1, 4)
+    w, x, y, z = q_flat.unbind(1)
+    qc_flat   = torch.stack([w, -x, -y, -z], dim=1)
+    return qc_flat.view(orig_shape)
 
-def quat2yaw(quat):
-    """
-    Convert a Gf.Quatd quaternion to a yaw angle (in degrees).
-    """
-    rotation = Gf.Rotation(quat)
-    euler_angles = rotation.Decompose(
-        Gf.Vec3d(1, 0, 0),
-        Gf.Vec3d(0, 1, 0),
-        Gf.Vec3d(0, 0, 1)
+
+def quat_mul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
+    s1       = q1.shape
+    q1_flat  = q1.reshape(-1, 4)
+    q2_flat  = q2.reshape(-1, 4)
+    w1, x1, y1, z1 = q1_flat.unbind(1)
+    w2, x2, y2, z2 = q2_flat.unbind(1)
+
+    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
+    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
+    y = w1*y2 - x1*z2 + y1*w2 + z1*x2
+    z = w1*z2 + x1*y2 - y1*x2 + z1*w2
+
+    out_flat = torch.stack([w, x, y, z], dim=1)
+    return out_flat.view(s1)
+
+
+# def quat_rotate_inverse(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+#     if q.dim() == 1:
+#         q = q.unsqueeze(0).expand(v.shape[0], -1)
+
+#     zeros   = torch.zeros(v.shape[:-1] + (1,), device=v.device, dtype=v.dtype)
+#     v_quat  = torch.cat([zeros, v], dim=-1)
+
+#     qc   = quat_conjugate(q)
+#     tmp  = quat_mul(qc, v_quat)
+#     res  = quat_mul(tmp, q)
+
+#     return res[..., 1:4]
+
+
+def quat2yaw(quat: Gf.Quatd) -> float:
+    w        = quat.GetReal()
+    x, y, z  = quat.GetImaginary()
+    return math.atan2(
+        2.0 * (w * z + x * y),
+        1.0 - 2.0 * (y * y + z * z)
     )
-    return euler_angles[2]  # Z-axis yaw
 
 class TargetPalletCommand(CommandTerm):
     def __init__(self, cfg, env: ManagerBasedEnv):
@@ -87,230 +76,138 @@ class TargetPalletCommand(CommandTerm):
 
         self.forklift: Articulation = env.scene[cfg.asset_name]
         self.stage = omni.usd.get_context().get_stage()
-        self.pallet_prim_paths = sim_utils.find_matching_prim_paths("/World/envs/env_.*/Pallet")
+        self._xform_cache = UsdGeom.XformCache(Usd.TimeCode.Default())
+        self.target_prim_paths = sim_utils.find_matching_prim_paths(
+            "/World/envs/env_.*/Target"
+        )
 
-        self.target_distance = 2.0
         self._device = self.forklift.data.device
 
-        self.pos_command_w = torch.zeros(self.num_envs, 3, device=self._device)
-        self.heading_command_w = torch.zeros(self.num_envs, device=self._device)
-        self.pos_command_b = torch.zeros_like(self.pos_command_w)
+        # World-frame commands
+        self.pos_command_w     = torch.zeros(self.num_envs, 3, device=self._device)
+        self.heading_command_w = torch.zeros(self.num_envs,   device=self._device)
+
+        # Body-frame commands
+        self.pos_command_b     = torch.zeros_like(self.pos_command_w)
+        self.test_pos_command_b     = torch.zeros_like(self.pos_command_w)
         self.heading_command_b = torch.zeros_like(self.heading_command_w)
+
+        # Target point heading
+        self.target_heading_w  = torch.zeros(self.num_envs,   device=self._device)
+        self.target_heading_b  = torch.zeros(self.num_envs, device=self._device)
+
+        # Forklift heading (world-frame, corrected +π)
+        self.forklift_heading_w = torch.zeros(self.num_envs, device=self._device)
+
+        # For Debugging
+        self.pallet_prim_paths = sim_utils.find_matching_prim_paths(
+            "/World/envs/env_.*/Pallet"
+        )
+        self.pallet_pos_w = torch.zeros(self.num_envs, 3, device=self._device)
 
     @property
     def command(self) -> torch.Tensor:
-        return torch.cat((self.pos_command_b, self.heading_command_b.unsqueeze(1)), dim=1)
+        return torch.cat([
+            self.test_pos_command_b,                 # (n,3)
+            self.heading_command_b.unsqueeze(1), # (n,1)
+            # self.heading_command_w.unsqueeze(1),
+            self.target_heading_b.unsqueeze(1),  # (n,1)
+            self.forklift_heading_w.unsqueeze(1), # (n,1) 추가
+        ], dim=1)
 
     def _update_metrics(self):
         self.metrics["error_pos"] = torch.norm(
             self.pos_command_w - self.forklift.data.root_link_pos_w[:, :3], dim=1)
         self.metrics["error_heading"] = torch.abs(
-            wrap_to_pi(self.heading_command_w - self.forklift.data.heading_w))
+            wrap_to_pi(self.heading_command_w - self.forklift_heading_w))
 
     def _resample_command(self, env_ids: Sequence[int]):
-        # Step 1: 환경별 pallet 위치와 orientation 무작위 설정
-        with Sdf.ChangeBlock():
-            for i, path in enumerate(self.pallet_prim_paths):
-                pallet_prim = self.stage.GetPrimAtPath(path)
-                
-                if not pallet_prim:
-                    continue
-                '''# 팔레트 Xform 객체 얻기 (변환 적용용)
-                palletXform = UsdGeom.Xform(pallet_prim)
-                
-                # 위치 속성 읽거나 생성 후 설정
-                translate_attr = pallet_prim.GetAttribute("xformOp:translate")
-                
-                if translate_attr is None:
-                    translate_attr = pallet_prim.CreateAttribute("xformOp:translate", Sdf.ValueTypeNames.Double3)
-                translate_attr.Set(rand_pos)
-                
-                # 방향 속성 읽거나 생성 후 설정
-                orient_attr = pallet_prim.GetAttribute("xformOp:orient")
-                if orient_attr is None:
-                    orient_attr = pallet_prim.CreateAttribute("xformOp:orient", Sdf.ValueTypeNames.Quatd)
-                orient_attr.Set(rand_orient)'''
-                
-                '''# 강체(Rigid Body)로 만들기
-                UsdPhysics.RigidBodyAPI.Apply(pallet_prim)
-                
-                # 메쉬가 있는 Prim 경로 (예: "/World/pallet/myMesh")
-                mesh_prim_path = path + '/Pallet_A1'
-                mesh_prim = self.stage.GetPrimAtPath(mesh_prim_path)
-                
-                collision_api = UsdPhysics.CollisionAPI.Apply(pallet_prim)
-                # 충돌 API 적용
-                mesh_collision_api = UsdPhysics.MeshCollisionAPI.Apply(mesh_prim)
-                #PhysxSchema.PhysxCollisionAPI.Apply(mesh_prim)
-                
-                # Convex Hull 설정
-                attr = mesh_collision_api.CreateApproximationAttr("convexHull")
-                
-                mass_api = UsdPhysics.MassAPI.Apply(pallet_prim)
-                mass_api.CreateMassAttr(100)
-                #pallet_prim.SetInstanceable(True)'''
-                #UsdPhysics.CollisionAPI.Apply(pallet_prim)
-                #PhysxSchema.PhysxContactReportAPI.Apply(pallet_prim)
-                #UsdPhysics.RigidBodyAPI.Apply(pallet_prim)
-                '''# Define terrain mesh
-                mesh_prim = stage.DefinePrim(f"/World/{name}", "Mesh")
-                mesh_prim.GetAttribute("points").Set(vertices)
-                mesh_prim.GetAttribute("faceVertexIndices").Set(faces.flatten())
-                mesh_prim.GetAttribute("faceVertexCounts").Set(np.asarray([3] * faces.shape[0]))  # 3 vertices per face
-                
-                terrain_prim = XFormPrim(
-                    prim_path=f"/World/{name}",
-                    name=f'{name}',
-                    position=position,
-                    orientation=orientation)
-                    
-                UsdPhysics.CollisionAPI.Apply(terrain_prim.prim)
-                physx_collision_api: PhysxSchema._physxSchema.PhysxCollisionAPI = PhysxSchema.PhysxCollisionAPI.Apply(terrain_prim.prim)
-                physx_collision_api.GetContactOffsetAttr().Set(0.04)
-                physx_collision_api.GetRestOffsetAttr().Set(0.01)
-                
-                material = PhysicsMaterial(
-                    prim_path=f"/World/Materials/{name}",
-                    # static_friction=0.1,
-                    # dynamic_friction=0.8,
-                    static_friction=0.1,
-                    dynamic_friction=2,
-                    restitution=0.0,
-                    )
-                material2: PhysxSchema._physxSchema.PhysxMaterialAPI = PhysxSchema.PhysxMaterialAPI.Apply(material.prim)
-                material2.CreateCompliantContactStiffnessAttr().Set(1000000.0)
-                material2.CreateCompliantContactDampingAttr().Set(20000.0)'''
-                '''
-                mesh_prim_path = path + '/Pallet_A1'
-                mesh_prim = self.stage.GetPrimAtPath(mesh_prim_path)
-                terrain_prim = XFormPrim(
-                    prim_path=mesh_prim_path,
-                    )
-                #UsdPhysics.MeshCollisionAPI.Apply(mesh_prim)
-                UsdPhysics.CollisionAPI.Apply(terrain_prim.prim)
-                physx_collision_api: PhysxSchema._physxSchema.PhysxCollisionAPI = PhysxSchema.PhysxCollisionAPI.Apply(terrain_prim.prim)
-                physx_collision_api.GetContactOffsetAttr().Set(0.04)
-                physx_collision_api.GetRestOffsetAttr().Set(0.01)'''
-                '''rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(pallet_prim)
-                rigid_api.GetSolveContactAttr()
-                PhysxSchema.PhysxConvexHullCollisionAPI.Apply(pallet_prim)
-                PhysxSchema.PhysxContactReportAPI.Apply(pallet_prim)'''
-                
-                
-                # Iterate descendant prims and add colliders to mesh or primitive types
-                for desc_prim in Usd.PrimRange(pallet_prim):
-                    '''if desc_prim.IsA(UsdGeom.Gprim):
-                        # Add rigidbody properties to the prim
-                        if not desc_prim.HasAPI(UsdPhysics.RigidBodyAPI):
-                            rigid_body_api = UsdPhysics.RigidBodyAPI.Apply(desc_prim)
-                        else:
-                            rigid_body_api = UsdPhysics.RigidBodyAPI(desc_prim)
-                        rigid_body_api.CreateRigidBodyEnabledAttr(True)'''
-                            
-                    if desc_prim.IsA(UsdGeom.Mesh) or desc_prim.IsA(UsdGeom.Gprim):
-                        # Add collision properties to the mesh (make sure collision is enabled)
-                        if not desc_prim.HasAPI(UsdPhysics.CollisionAPI):
-                            collision_api = UsdPhysics.CollisionAPI.Apply(desc_prim)
-                        else:
-                            collision_api = UsdPhysics.CollisionAPI(desc_prim)
-                        collision_api.CreateCollisionEnabledAttr(True)
-                        
-                        # Add PhysX collision properties to the mesh (e.g. bouncyness)
-                        if not desc_prim.HasAPI(PhysxSchema.PhysxCollisionAPI):
-                            physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(desc_prim)
-                        else:
-                            physx_collision_api = PhysxSchema.PhysxCollisionAPI(desc_prim)
-                        physx_collision_api.CreateRestOffsetAttr(0.0)
-                        
-                    '''# Add mesh specific collision properties only to mesh types
-                    if desc_prim.IsA(UsdGeom.Mesh):
-                        # Add mesh collision properties to the mesh (e.g. collider aproximation type)
-                        if not desc_prim.HasAPI(UsdPhysics.MeshCollisionAPI):
-                            mesh_collision_api = UsdPhysics.MeshCollisionAPI.Apply(desc_prim)
-                        else:
-                            mesh_collision_api = UsdPhysics.MeshCollisionAPI(desc_prim)
-                        #desc_prim.GetAttribute("xformOp:orient").Set('convexHull')'''
-                '''omni.kit.commands.execute("AddPhysicsComponentCommand",
-                      usd_prim=pallet_prim,
-                      component="PhysicsRigidBodyAPI")
-                mesh_prim = self.stage.GetPrimAtPath(path+'/Pallet_A1')
-                omni.kit.commands.execute("AddPhysicsComponentCommand",
-                    usd_prim=mesh_prim,
-                    component="PhysicsCollisionAPI")
-                utils.setCollider(pallet_prim, approximationShape="sdf")'''
+        """
+        reset 후에 호출되는 함수로 변경된 Target point에 대한 값을 가져옴
+        """
+        self._xform_cache.Clear()
 
-                # 랜덤 위치 생성
-                rand_x = random.uniform(-3.0, 3.0)
-                rand_y = random.uniform(-3.0, 3.0)
-                pos = Gf.Vec3d(rand_x, rand_y, 0.0)
-                
-                # 랜덤 yaw 쿼터니언 (사용자 정의 함수)
-                quat = quat_from_yaw()
-                
-                # Xform 정의 및 위치/회전 설정
-                pallet_xform = UsdGeom.Xform(pallet_prim)
-                xform_ops = pallet_xform.GetOrderedXformOps()
-                
-                translate_op = None
-                orient_op = None
-                for op in xform_ops:
-                    if op.GetOpType() == UsdGeom.XformOp.TypeTranslate:
-                        translate_op = op
-                    elif op.GetOpType() == UsdGeom.XformOp.TypeOrient:
-                        orient_op = op
-                # 기존 transform 연산자가 있으면 값만 설정, 없으면 새로 추가
-                if translate_op:
-                    translate_op.Set(pos)
-                else:
-                    pallet_xform.AddTranslateOp().Set(pos)
-                
-                if orient_op:
-                    orient_op.Set(quat)
-                else:
-                    pallet_xform.AddOrientOp().Set(quat)
-                
-
-        # Step 2: pallet 기준으로 각 환경의 target point 설정
-        for i, path in enumerate(self.pallet_prim_paths):
-            pallet_prim = self.stage.GetPrimAtPath(path)
-            if not pallet_prim:
+        # print("[Command] TargetPalletCommand: _resample_command")
+        for path in self.target_prim_paths:
+            parts = path.split("/")
+            if len(parts) < 4 or not parts[3].startswith("env_"):
                 continue
 
-            translate_attr = pallet_prim.GetAttribute("xformOp:translate")
-            orient_attr = pallet_prim.GetAttribute("xformOp:orient")
-            if translate_attr is None or orient_attr is None:
+            env_idx = int(parts[3].split("_", 1)[1])
+            if env_idx not in env_ids:
                 continue
 
-            translate = translate_attr.Get()
-            orient = orient_attr.Get()
-            yaw = quat2yaw(orient)
+            prim = self.stage.GetPrimAtPath(path)
+            if not prim:
+                continue
 
-            s1 = (translate[0], translate[1])  # pallet 위치
-            s0 = (0.0, 0.0)  # 기준점 (무시 가능)
+            world_mat = self._xform_cache.GetLocalToWorldTransform(prim)
+            world_pos = world_mat.ExtractTranslation()  # Gf.Vec3d
 
-            # target 후보 계산
-            a = cal(self.target_distance, yaw)
-            candidate1 = (s1[0] - a[0], s1[1] - a[1])
-            candidate2 = (s1[0] + a[0], s1[1] + a[1])
+            self.pos_command_w[env_idx] = torch.tensor(
+                [world_pos[0], world_pos[1], world_pos[2]],
+                device=self._device,
+            )
 
-            selected_xy = random.choice([candidate1, candidate2])
-            selected_z = 0.0  # flat ground 가정
+            orient = prim.GetAttribute("xformOp:orient").Get()  # Gf.Quatd
+            self.target_heading_w[env_idx] = quat2yaw(orient)
 
-            selected_target = torch.tensor([*selected_xy, selected_z], device=self._device)
+        # For Debugging
+        for path in self.pallet_prim_paths:
+            parts = path.split("/")
+            if len(parts) < 4 or not parts[3].startswith("env_"):
+                continue
+            env_idx = int(parts[3].split("_",1)[1])
+            if env_idx not in env_ids:
+                continue
 
-            if i in env_ids:
-                self.pos_command_w[i] = selected_target
-                self.heading_command_w[i] = 0.0
+            prim = self.stage.GetPrimAtPath(path)
+            if not prim:
+                continue
+            world_mat = self._xform_cache.GetLocalToWorldTransform(prim)
+            wp = world_mat.ExtractTranslation()  # Gf.Vec3d
+            # tensor 로 변환해서 저장
+            self.pallet_pos_w[env_idx] = torch.tensor(
+                [wp[0], wp[1], wp[2]],
+                device=self._device
+            )
 
     def _update_command(self):
+        """
+        포크리프트 헤딩에 180° 옵셋 적용
+        """
+        self.forklift_heading_w = wrap_to_pi(
+            self.forklift.data.heading_w + math.pi
+        )
+
+        """
+        매 스텝마다 변경되는 forklift의 위치를 반영하여 heading_command_w와 heading_command_b를 구함
+        """
+        
+        forklift_xy = self.forklift.data.root_link_pos_w[:, :2]   # (N,2)
+        target_xy   = self.pos_command_w[:, :2]                  # (N,2)
+
+        target2vec  = target_xy - forklift_xy                    # (N,2)
         target_vec = self.pos_command_w - self.forklift.data.root_link_pos_w[:, :3]
-        self.pos_command_b = quat_rotate_inverse(yaw_quat(self.forklift.data.root_link_quat_w), target_vec)
-        self.heading_command_b = wrap_to_pi(self.heading_command_w - self.forklift.data.heading_w)
+        self.test_pos_command_b[:] = quat_rotate_inverse(
+        yaw_quat(self.forklift.data.root_link_quat_w), target_vec)
+        self.heading_command_w = torch.atan2(target2vec[:,1], target2vec[:,0])
+        """
+        pos_command_b = (x_local, y_local, z_local) -> 포크리프트 정면 방향(+x) 기준으로 목표가 얼마나 떨어져 있는지, 포크리프트 옆면 방향(+y) 기준으로 목표가 얼마나 떨어져 있는지
+        """
+        zeros_z = torch.zeros(target2vec.shape[0], 1,
+                              device=self._device, dtype=target2vec.dtype)  # (N,1)
+        delta3d = torch.cat([target2vec, zeros_z], dim=1)                    # (N,3)
+        self.pos_command_b = quat_rotate_inverse(
+            self.forklift.data.root_link_quat_w,
+            delta3d) 
+        # print("[INFO] pos_command_b: ", self.pos_command_b) # forklift의 body frame 기준으로 계산된 목표 위치까지의 3D 이동 벡터
+        self.heading_command_b = wrap_to_pi(
+            self.heading_command_w - self.forklift_heading_w)
+        # print("heading_command_b: ", self.heading_command_b) # 포크리프트의 body frame 기준으로 목표 heading이 얼마나 떨어져 있는지
 
-
-
-if __name__ == "__main__":
-    importer = TargetPalletCommand()
-    new_targets = importer.sample_new_target()
-    print("Target points for each environment:", new_targets)
-    pass
+        """
+        target point의 heading을 world frame에서 body frame(forklift) 으로 변환 
+        """
+        self.target_heading_b = wrap_to_pi(self.target_heading_w - self.forklift_heading_w)
+        # print("[TEST] target_heading_b: ", self.target_heading_b)

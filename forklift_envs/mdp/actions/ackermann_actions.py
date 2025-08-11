@@ -85,6 +85,7 @@ class AckermannAction(ActionTerm):
 
     def process_actions(self, actions):
         # store the raw actions
+        # print("[AckermannAction] process_actions: ", actions)
         self._raw_actions[:] = actions
         self._processed_actions = self.raw_actions * self._scale + self._offset
 
@@ -94,7 +95,9 @@ class AckermannAction(ActionTerm):
             self._processed_actions[:, 0], self._processed_actions[:, 1], self.cfg, self.device)
 
         self._asset.set_joint_velocity_target(self._joint_vel, joint_ids=self._drive_joint_ids)
+        # print("[AckermannAction] joint_vel: ", self._joint_vel)
         self._asset.set_joint_position_target(self._joint_pos, joint_ids=self._steering_joint_ids)
+        # print("[AckermannAction] joint_pos: ", self._joint_pos)
 
 
 class AckermannActionNonVec():
@@ -170,13 +173,28 @@ class AckermannActionNonVec():
         self._raw_actions[:] = actions
         self._processed_actions = self.raw_actions * self._scale + self._offset
 
-    def apply_actions(self):
-        # Apply the actions to the rover
-        self._joint_pos, self._joint_vel = ackermann(
-            self._processed_actions[:, 0], self._processed_actions[:, 1], self.cfg, self.device)
+    # def apply_actions(self):
+    #     # Apply the actions to the rover
+    #     self._joint_pos, self._joint_vel = ackermann(
+    #         -self._processed_actions[:, 0], self._processed_actions[:, 1], self.cfg, self.device)
 
-        self._asset.set_joint_velocity_target(self._joint_vel, joint_ids=self._sorted_drive_ids)
-        self._asset.set_joint_position_target(self._joint_pos, joint_ids=self._sorted_steering_ids)
+    #     self._asset.set_joint_velocity_target(self._joint_vel, joint_ids=self._sorted_drive_ids)
+    #     self._asset.set_joint_position_target(self._joint_pos, joint_ids=self._sorted_steering_ids)
+    def apply_actions(self):
+        # processed_actions: (n_envs, 2) → [:,0]=v, [:,1]=δ
+        v, delta = self._processed_actions[:,0], self._processed_actions[:,1]
+        # 1) 스티어링 각도: (n_envs,1)
+        steer_pos = delta.unsqueeze(1)
+        # 2) 드라이브 휠 각속도: (n_envs,1)
+        #    wheel_radius는 cfg에 저장해 두셨을 거예요.
+        wheel_vel = (v / self.cfg.wheel_radius).unsqueeze(1)
+        # 3) 플랫폼에 바로 적용
+        #    steering_joint_ids: 한 개 혹은 두 개가 같은 축에 묶여 있을 겁니다.
+        self._asset.set_joint_position_target(steer_pos,
+                                              joint_ids=self._steering_joint_ids)
+        #    drive_joint_ids: 하나의 휠 모터 ID
+        self._asset.set_joint_velocity_target(wheel_vel,
+                                              joint_ids=self._drive_joint_ids)
 
 
 def ackermann(lin_vel, ang_vel, cfg, device):
@@ -222,8 +240,8 @@ def ackermann(lin_vel, ang_vel, cfg, device):
     # print("steering angle: ", steering_angle)
     # print("driving wheel: ", driving_wheel.shape)
 
-    # test_steer = torch.full((64,1), 0.2, device='cuda:0')
-    # test_drive = torch.full((64,1), 0.5, device='cuda:0')
+    # test_steer = torch.full((1,1), 0.0, device='cuda:0')
+    # test_drive = torch.full((1,1), 0.5, device='cuda:0')
 
-    # return steering_angle, driving_wheel
+    # return test_steer, test_drive
     return  steering_angle, driving_wheel

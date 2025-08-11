@@ -3,65 +3,71 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
+from pxr import Gf, Usd, UsdGeom
+
+import omni.usd
+
 # Importing necessary modules from the isaaclab package
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
+from isaaclab.assets import Articulation, RigidObject, AssetBase
+from isaaclab.utils.math import wrap_to_pi
+
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
-def is_success(env: ManagerBasedRLEnv, command_name: str, threshold: float) -> torch.Tensor:
-    """
-    Determine whether the target has been reached.
+def is_success(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    distance_threshold: float,
+    angle_threshold: float
+) -> torch.Tensor:    
 
-    This function checks if the rover is within a certain threshold distance from the target.
-    If the target is reached, a scaled reward is returned based on the remaining time steps.
-    """
+    cmd = env.command_manager.get_command(command_name)  # (n_envs, N)
 
-    # Accessing the target's position
-    target = env.command_manager.get_command(command_name)
-    target_position = target[:, :2]
+    target_pos_local = cmd[:, :2]    # (n_envs, 2)
+    heading_cmd_w    = cmd[:, 3]     # (n_envs,)
 
-    angle = env.command_manager.get_command(command_name)[:, 3]
+    distance = torch.norm(target_pos_local, p=2, dim=-1)      # (n_envs,)
+    angle_ok = torch.abs(heading_cmd_w) <= angle_threshold   # (n_envs,)
 
-    # Calculating the distance and determining if the target is reached
-    distance = torch.norm(target_position, p=2, dim=-1)
+    success = (distance <= distance_threshold) & angle_ok    # (n_envs,)
 
-    return torch.where((distance < threshold) & (torch.abs(angle) < 0.1), True, False)
-    # return torch.where(distance < threshold, True, False)
-
-
-def far_from_target(env: ManagerBasedRLEnv, command_name: str, threshold: float) -> torch.Tensor:
-    """
-    Determine whether the target has been reached.
-
-    This function checks if the rover is within a certain threshold distance from the target.
-    If the target is reached, a scaled reward is returned based on the remaining time steps.
-    """
-
-    # Accessing the target's position w.r.t. the robot frame
-    target = env.command_manager.get_command(command_name)
-    target_position = target[:, :2]
-
-    # Calculating the distance and determining if the target is reached
-    distance = torch.norm(target_position, p=2, dim=-1)
-
-    return torch.where(distance > threshold, True, False)
+    return success
 
 
-def collision_with_obstacles(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
-    """
-    Checks for collision with obstacles.
-    """
-    # Accessing the contact sensor and its data
-    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
 
-    # Reshape as follows (num_envs, num_bodies, 3)
-    force_matrix = contact_sensor.data.force_matrix_w.view(env.num_envs, -1, 3)
+def far_from_target(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    distance_threshold: float
+) -> torch.Tensor:
 
-    # Calculating the force and returning true if it is above the threshold
-    normalized_forces = torch.norm(force_matrix, dim=1)
-    forces_active = torch.sum(normalized_forces, dim=-1) > 1
+    cmd = env.command_manager.get_command(command_name)  # shape: (n_envs, N)
+    target_pos_local = cmd[:, :2]                       # (n_envs, 2)
+    distance = torch.norm(target_pos_local, p=2, dim=-1) # (n_envs,)
+    is_far = distance > distance_threshold
 
-    return torch.where(forces_active, True, False)
+    return is_far
+
+
+# 아직 구현 안 함!
+# def collision_with_obstacles(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
+#     """
+#     Checks for collision with obstacles.
+#     """
+
+#     # print(f"[Termination] collision with obstacles, sensor name is {sensor_cfg.name}")
+#     # Accessing the contact sensor and its data
+#     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+
+#     # Reshape as follows (num_envs, num_bodies, 3)
+#     force_matrix = contact_sensor.data.force_matrix_w.view(env.num_envs, -1, 3)
+#     # print(f"[INFO] force matrix: {force_matrix}")
+#     # Calculating the force and returning true if it is above the threshold
+#     normalized_forces = torch.norm(force_matrix, dim=1)
+#     forces_active = torch.sum(normalized_forces, dim=-1) > 1
+
+#     return torch.where(forces_active, True, False)

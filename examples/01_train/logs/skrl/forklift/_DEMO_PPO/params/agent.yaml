@@ -1,0 +1,57 @@
+seed: 42
+models:
+  separate: false
+  policy:
+    type: GaussianPolicyConv
+    params:
+      mlp_input_size: 5
+      mlp_layers:
+      - 256
+      - 160
+      - 128
+      mlp_activation: leaky_relu
+      encoder_layers:
+      - 8
+      - 16
+      - 32
+      - 64
+      encoder_activation: leaky_relu
+  value:
+    type: ValueNetworkConv
+    params:
+      mlp_input_size: 3
+      mlp_layers:
+      - 256
+      - 160
+      - 128
+      mlp_activation: leaky_relu
+      encoder_layers:
+      - 8
+      - 16
+      - 32
+      - 64
+      encoder_activation: leaky_relu
+agent:
+  rollouts: 60
+  learning_epochs: 4
+  mini_batches: 60
+  discount_factor: 0.99
+  lambda: 0.95
+  learning_rate: 0.001
+  random_timesteps: 0
+  learning_starts: 0
+  grad_norm_clip: 0.5
+  ratio_clip: 0.2
+  value_clip: 0.2
+  clip_predicted_values: true
+  entropy_loss_scale: 0.01
+  value_loss_scale: 1.0
+  kl_threshold: 0.008
+  experiment:
+    directory: /workspace/isaac_forklift/examples/01_train/logs/skrl/forklift
+    experiment_name: _DEMO_PPO
+    write_interval: 40
+    checkpoint_interval: 400
+    wandb: true
+trainer:
+  timesteps: 100000

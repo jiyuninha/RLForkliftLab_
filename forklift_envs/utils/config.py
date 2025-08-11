@@ -44,26 +44,17 @@ SKRL_PPO_CONFIG_FILE = {
 }
 
 
-def parse_skrl_cfg(task_name) -> dict:
-    """Parse configuration based on command line arguments.
-
-    Args:
-        task_name (str): The name of the environment.
-
-    Returns:
-        dict: A dictionary containing the parsed configuration.
-    """
-
-    # retrieve the default environment config file
-    try:
-        config_file = SKRL_PPO_CONFIG_FILE[task_name]
-    except KeyError:
-        raise ValueError(f"Task not found: {task_name}")
-
-    # parse agent configuration
-    with open(config_file, encoding="utf-8") as f:
-        cfg = yaml.load(f, Loader=yaml.Loader)  # noqa: R504
-    return cfg  # noqa: R504
+def parse_skrl_cfg(name_or_path: str) -> dict:
+    # 파일 경로면 그대로, 아니면 키 매핑을 타서
+    if os.path.isfile(name_or_path):
+        config_file = name_or_path
+    else:
+        try:
+            config_file = SKRL_PPO_CONFIG_FILE[name_or_path]
+        except KeyError:
+            raise ValueError(f"Configuration file not found: {name_or_path!r}")
+    with open(config_file, 'r', encoding='utf-8') as f:
+        return yaml.load(f, Loader=yaml.Loader)
 
 
 def convert_skrl_cfg(cfg):

@@ -5,6 +5,7 @@ seed: 42
 models:
   separate: False
   policy:  # see skrl.utils.model_instantiators.gaussian_model for parameter details
+    type: gaussian_model
     clip_actions: True
     clip_log_std: True
     min_log_std: -20.0
@@ -16,6 +17,7 @@ models:
     output_activation: "tanh"
     output_scale: 1.0
   value:  # see skrl.utils.model_instantiators.deterministic_model for parameter details
+    type: deterministic_model
     clip_actions: False
     input_shape: "Shape.STATES"
     hiddens: [32, 32]

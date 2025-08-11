@@ -26,7 +26,7 @@ FORKLIFT_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=FORKLIFT_USD_PATH,
         activate_contact_sensors=True,
-        collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.04, rest_offset=0.01),
+        collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.01, rest_offset=0.01),
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             max_linear_velocity=1.5,
             max_angular_velocity=1000.0,
@@ -41,7 +41,7 @@ FORKLIFT_CFG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(4.0, 0.0, 0.0),
+        pos=(0.0, 0.0, 0.0),
     ),
     actuators={
         "steer_actuator": ImplicitActuatorCfg(
