@@ -1,3 +1,10 @@
-__pycache__/
-*.pyc
-*.log
+**/wandb/
+**/logs/
+*.wandb
+events.out.tfevents.*
+
+**/checkpoints/
+**/videos/
+*.pt
+*.pth
+*.onnx
