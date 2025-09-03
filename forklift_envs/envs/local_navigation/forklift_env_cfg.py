@@ -180,7 +180,18 @@ class RewardsCfg:
             "command_name": "target_pose", 
         },
     )
-
+    collision_lift = RewTerm(
+        func=mdp.collision_penalty,
+        weight=-3.0,
+        params={"sensor_cfg": SceneEntityCfg(
+            "contact_sensor_lift"), "threshold": 1.0},
+    )
+    collision_body = RewTerm(
+        func=mdp.collision_penalty,
+        weight=-3.0,
+        params={"sensor_cfg": SceneEntityCfg(
+            "contact_sensor_body"), "threshold": 1.0},
+    )
 
 @configclass
 class TerminationsCfg:
@@ -201,16 +212,16 @@ class TerminationsCfg:
             "distance_threshold": 10.0
         },
     )
-    # collision = DoneTerm(
-    #     func=mdp.collision_with_obstacles,
-    #     params={"sensor_cfg": SceneEntityCfg(
-    #         "contact_sensor_lift"), "threshold": 1.0},
-    # )
-    # collision = DoneTerm(
-    #     func=mdp.collision_with_obstacles,
-    #     params={"sensor_cfg": SceneEntityCfg(
-    #         "contact_sensor_body"), "threshold": 1.0},
-    # )
+    collision_lift = DoneTerm(
+        func=mdp.collision_with_obstacles,
+        params={"sensor_cfg": SceneEntityCfg(
+            "contact_sensor_lift"), "threshold": 1.0},
+    )
+    collision_body = DoneTerm(
+        func=mdp.collision_with_obstacles,
+        params={"sensor_cfg": SceneEntityCfg(
+            "contact_sensor_body"), "threshold": 1.0},
+    )
 
 
 # "mdp.illegal_contact
@@ -269,7 +280,7 @@ class ForkliftEnvCfg(ManagerBasedRLEnvCfg):
 
     # Create scene
     scene: ForkliftSceneCfg = ForkliftSceneCfg(
-        num_envs=128, env_spacing=10.0, replicate_physics=False)
+        num_envs=32, env_spacing=10.0, replicate_physics=False)
 
     # Setup PhysX Settings
     sim: SimCfg = SimCfg(
@@ -323,10 +334,14 @@ class ForkliftEnvCfg(ManagerBasedRLEnvCfg):
         self.episode_length_s = 150
         self.viewer.eye = (-30.0, -30.0, 10.0)
         self.viewer.lookat = (-13.0, -13.0, 0.0)
+        # self.viewer.width  = 1920
+        # self.viewer.height = 1080
 
 
-    #     # update sensor periods
+        # update sensor periods
     #     if self.scene.height_scanner is not None:
     #         self.scene.height_scanner.update_period = self.sim.dt * self.decimation
-    #     if self.scene.contact_sensor is not None:
-    #         self.scene.contact_sensor.update_period = self.sim.dt * self.decimation
+        if self.scene.contact_sensor_body is not None:
+            self.scene.contact_sensor_body.update_period = self.sim.dt * self.decimation
+        if self.scene.contact_sensor_lift is not None:
+            self.scene.contact_sensor_lift.update_period = self.sim.dt * self.decimation

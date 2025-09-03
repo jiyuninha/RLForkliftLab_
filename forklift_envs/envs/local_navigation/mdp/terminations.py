@@ -54,20 +54,20 @@ def far_from_target(
 
 
 # 아직 구현 안 함!
-# def collision_with_obstacles(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
-#     """
-#     Checks for collision with obstacles.
-#     """
+def collision_with_obstacles(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
+    """
+    Checks for collision with obstacles.
+    """
 
-#     # print(f"[Termination] collision with obstacles, sensor name is {sensor_cfg.name}")
-#     # Accessing the contact sensor and its data
-#     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    # print(f"[Termination] collision with obstacles, sensor name is {sensor_cfg.name}")
+    # Accessing the contact sensor and its data
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
 
-#     # Reshape as follows (num_envs, num_bodies, 3)
-#     force_matrix = contact_sensor.data.force_matrix_w.view(env.num_envs, -1, 3)
-#     # print(f"[INFO] force matrix: {force_matrix}")
-#     # Calculating the force and returning true if it is above the threshold
-#     normalized_forces = torch.norm(force_matrix, dim=1)
-#     forces_active = torch.sum(normalized_forces, dim=-1) > 1
+    # Reshape as follows (num_envs, num_bodies, 3)
+    force_matrix = contact_sensor.data.force_matrix_w.view(env.num_envs, -1, 3)
+    # print(f"[INFO] force matrix: {force_matrix}")
+    # Calculating the force and returning true if it is above the threshold
+    normalized_forces = torch.norm(force_matrix, dim=1)
+    forces_active = torch.sum(normalized_forces, dim=-1) > 1
 
-#     return torch.where(forces_active, True, False)
+    return torch.where(forces_active, True, False)

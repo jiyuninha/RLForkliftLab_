@@ -23,7 +23,7 @@ class PalletSceneCfg(InteractiveSceneCfg):
     pallet_scene = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Pallet",
         spawn=sim_utils.UsdFileCfg(usd_path=PALLET_USD_PATH, 
-              scale=[0.01, 0.01, 0.01],
+              scale=[0.012, 0.012, 0.012],
               ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(-4.0, 0.0, 0.0)),
     )
@@ -35,7 +35,7 @@ class PalletSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
         ),
         init_state=AssetBaseCfg.InitialStateCfg(
-            pos=(-2.0, 0.0, 0.0),
+            pos=(-2.0, 0.0, 0.0), # target 
         ),
     )
 

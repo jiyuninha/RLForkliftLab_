@@ -22,11 +22,18 @@ class ForkliftEnv(ManagerBasedRLEnv):
     def __init__(self, cfg: ForkliftEnvCfg, **kwargs):
         super().__init__(cfg, **kwargs)
         env_ids = torch.arange(self.num_envs, device=self.device)
+        from omni.isaac.core.prims import RigidPrimView
 
         # terrain: TerrainImporter = self.scene.terrain
         # terrain.env_origins[env_ids, 0] += 8
         # terrain.env_origins[env_ids, 1] += 8
+            # --- 여기서 첫 번째 코드 삽입 ---    
+        # forklift 루트 prim 경로 얻기
+        
+        # m = self.scene["forklift"].data.default_mass
 
+        # print("[MASS] default_mass type/shape:", type(m), getattr(m, "shape", None))
+        # print("[MASS] default_mass:", m)        
         self.global_step_counter = 0
 
     def _reset_idx(self, idx: torch.Tensor):

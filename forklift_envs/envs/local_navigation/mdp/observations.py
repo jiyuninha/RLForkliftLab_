@@ -27,7 +27,7 @@ def angle_to_target_observation(
     # print("[TEST] angle: ", angle)
     cmd = env.command_manager.get_command(command_name)
     heading_command_b = cmd[:, 3]
-    print("[INFO] heading_command_b: ", heading_command_b)
+    # print("[INFO] heading_command_b: ", heading_command_b)
     return heading_command_b.unsqueeze(-1)
 
 def distance_to_target_euclidean(
@@ -38,7 +38,7 @@ def distance_to_target_euclidean(
     cmd = env.command_manager.get_command(command_name)
     pos_command_b = cmd[:, :2]
     dist = torch.norm(pos_command_b, dim=1)
-    print("[Obs] distance to target euclidean: ", dist)  # Debugging output
+    # print("[Obs] distance to target euclidean: ", dist)  # Debugging output
     
     return dist.unsqueeze(-1)
 
@@ -47,6 +47,6 @@ def angle_diff(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
     
     target_heading_b = env.command_manager.get_command(command_name)[:, 4]
     # print("angle_diff: ", heading_angle_diff)  # Debugging output
-    print("[TEST] target heading b: ", target_heading_b)
+    # print("[TEST] target heading b: ", target_heading_b)
     
     return target_heading_b.unsqueeze(-1)

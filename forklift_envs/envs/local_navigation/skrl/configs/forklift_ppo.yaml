@@ -51,14 +51,14 @@ agent:
   ratio_clip: 0.2
   value_clip: 0.2
   clip_predicted_values: True
-  entropy_loss_scale: 0.01
+  entropy_loss_scale: 0.01 # 0.05
   value_loss_scale: 1.0
   kl_threshold: 0.008
   #rewards_shaper_scale: null
   # logging and checkpoint
   experiment:
     directory: "forklift"
-    experiment_name: "DEMO"
+    experiment_name: "DEMO(32)_resolution_1980x1080"
     write_interval: 40
     checkpoint_interval: 400
     wandb: True             # whether to use Weights & Biases

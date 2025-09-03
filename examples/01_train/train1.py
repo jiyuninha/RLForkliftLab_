@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser("Welcome to Isaac Lab: Omniverse Robotics Envir
 parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
-parser.add_argument("--num_envs", type=int, default=128, help="Number of environments to simulate.")
+parser.add_argument("--num_envs", type=int, default=32, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default="ForkliftEnv-v0", help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--agent", type=str, default="PPO", help="Name of the agent.")
@@ -32,6 +32,13 @@ sys.argv = [sys.argv[0]] + hydra_args
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 os.environ["WANDB_MODE"] = "online"
+
+# ✅ 여기서 확장 강제 로드
+import omni.kit.app
+em = omni.kit.app.get_app().get_extension_manager()
+for ext in ["omni.isaac.core"]:
+    if not em.is_extension_enabled(ext):
+        em.set_extension_enabled_immediate(ext, True)
 
 from isaaclab_rl.skrl import SkrlVecEnvWrapper 
 

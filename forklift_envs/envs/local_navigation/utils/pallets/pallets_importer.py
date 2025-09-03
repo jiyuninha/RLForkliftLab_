@@ -100,10 +100,10 @@ class TargetPalletCommand(CommandTerm):
         self.forklift_heading_w = torch.zeros(self.num_envs, device=self._device)
 
         # For Debugging
-        self.pallet_prim_paths = sim_utils.find_matching_prim_paths(
-            "/World/envs/env_.*/Pallet"
-        )
-        self.pallet_pos_w = torch.zeros(self.num_envs, 3, device=self._device)
+        # self.pallet_prim_paths = sim_utils.find_matching_prim_paths(
+        #     "/World/envs/env_.*/Pallet"
+        # )
+        # self.pallet_pos_w = torch.zeros(self.num_envs, 3, device=self._device)
 
     @property
     def command(self) -> torch.Tensor:
@@ -150,27 +150,28 @@ class TargetPalletCommand(CommandTerm):
             )
 
             orient = prim.GetAttribute("xformOp:orient").Get()  # Gf.Quatd
-            self.target_heading_w[env_idx] = quat2yaw(orient)
+            # self.target_heading_w[env_idx] = quat2yaw(orient)
+            self.target_heading_w[env_idx] = wrap_to_pi(quat2yaw(orient) + math.pi)
 
         # For Debugging
-        for path in self.pallet_prim_paths:
-            parts = path.split("/")
-            if len(parts) < 4 or not parts[3].startswith("env_"):
-                continue
-            env_idx = int(parts[3].split("_",1)[1])
-            if env_idx not in env_ids:
-                continue
+        # for path in self.pallet_prim_paths:
+        #     parts = path.split("/")
+        #     if len(parts) < 4 or not parts[3].startswith("env_"):
+        #         continue
+        #     env_idx = int(parts[3].split("_",1)[1])
+        #     if env_idx not in env_ids:
+        #         continue
 
-            prim = self.stage.GetPrimAtPath(path)
-            if not prim:
-                continue
-            world_mat = self._xform_cache.GetLocalToWorldTransform(prim)
-            wp = world_mat.ExtractTranslation()  # Gf.Vec3d
-            # tensor 로 변환해서 저장
-            self.pallet_pos_w[env_idx] = torch.tensor(
-                [wp[0], wp[1], wp[2]],
-                device=self._device
-            )
+        #     prim = self.stage.GetPrimAtPath(path)
+        #     if not prim:
+        #         continue
+        #     world_mat = self._xform_cache.GetLocalToWorldTransform(prim)
+        #     wp = world_mat.ExtractTranslation()  # Gf.Vec3d
+        #     # tensor 로 변환해서 저장
+        #     self.pallet_pos_w[env_idx] = torch.tensor(
+        #         [wp[0], wp[1], wp[2]],
+        #         device=self._device
+        #     )
 
     def _update_command(self):
         """
@@ -210,4 +211,4 @@ class TargetPalletCommand(CommandTerm):
         target point의 heading을 world frame에서 body frame(forklift) 으로 변환 
         """
         self.target_heading_b = wrap_to_pi(self.target_heading_w - self.forklift_heading_w)
-        # print("[TEST] target_heading_b: ", self.target_heading_b)
+        print("[TEST] target_heading_b: ", self.target_heading_b)

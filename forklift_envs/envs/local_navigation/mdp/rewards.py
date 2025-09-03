@@ -121,3 +121,20 @@ def far_from_target_reward(
     )
 
     return penalty
+
+def collision_penalty(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
+    """
+    Calculate a penalty for collisions detected by the sensor.
+
+    This function checks for forces registered by the rover's contact sensor.
+    If the total force exceeds a certain threshold, it indicates a collision,
+    and a penalty is applied.
+    """
+    # Accessing the contact sensor and its data
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    print("[Reward] contact sensor name: ", sensor_cfg.name)  # Debugging output
+    force_matrix = contact_sensor.data.force_matrix_w.view(env.num_envs, -1, 3)
+    # Calculating the force and applying a penalty if collision forces are detected
+    normalized_forces = torch.norm(force_matrix, dim=1)
+    forces_active = torch.sum(normalized_forces, dim=-1) > 1
+    return torch.where(forces_active, 1.0, 0.0)
