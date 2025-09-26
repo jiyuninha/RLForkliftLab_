@@ -1,0 +1,3 @@
+[submodule "skrl"]
+	path = skrl
+	url = https://github.com/Toni-SM/skrl.git
