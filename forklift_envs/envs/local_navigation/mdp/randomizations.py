@@ -131,7 +131,7 @@ def reset_root_state_pallet_target(
             # 2) Gf.Quatd -> torch(w,x,y,z) 변환
             qw = float(q_gf.GetReal())
             qx, qy, qz = [float(v) for v in q_gf.GetImaginary()]
-            q_torch = torch.tensor([qw, qx, qy, qz]``, device=env.device, dtype=torch.float32)
+            q_torch = torch.tensor([qw, qx, qy, qz], device=env.device, dtype=torch.float32)
 
             # 3) 로컬 전방벡터(+X 가정)를 쿼터니언으로 회전 → 월드 전방
             dir_world = quat_apply(q_torch, forward_local)  # (3,)
