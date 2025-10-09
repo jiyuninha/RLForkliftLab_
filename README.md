@@ -1,47 +1,36 @@
-# RLForkliftLab
+# RLForkliftLab: RL-Based Navigation for Forklifts in Isaac Lab
 
-## Description
+**RLForkliftLab** is an **Isaac Lab / Isaac Sim**–based **reinforcement learning (RL)** environment for **forklifts**.  
+Keywords: RLForkliftLab, Isaac Lab, Isaac Sim, ROS 2, forklift, PPO, navigation.
 
-## Installation
+<p align="left">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <img alt="Ubuntu" src="https://img.shields.io/badge/Ubuntu-22.04-important">
+  <img alt="GPU" src="https://img.shields.io/badge/NVIDIA-GPU%20required-lightgrey">
+    <a href="https://github.com/NVIDIA-Omniverse/IsaacLab">
+    <img alt="IsaacLab" src="https://img.shields.io/badge/IsaacLab-2.1.0-brightgreen">
+  </a>
+  <a href="https://developer.nvidia.com/isaac-sim">
+    <img alt="IsaacSim" src="https://img.shields.io/badge/IsaacSim-4.5.0-brightgreen">
+  </a>
+</p>
 
-```bash
-git clone https://github.com/jiyuninha/RLForkliftLab_.git
-cd /home/{$USER}/RLForklift/docker
-docker-compose up forklift-lab-base --detach --build --remove-orphans
-docker-compose up forklift-lab-ros2 --detach --build --remove-orphans
+## Features
+- Forklift kinematics/steering model and Isaac Lab **task** template
+- Example **training/eval** scripts and a custom **env** (PPO/SAC-ready)
+- Quick demo launcher (`isaaclab.sh -p ...`)
 
-# Enter the container.
-docker exec -it forklift-lab-ros2 bash
-```
+---
 
 ## Prerequisites
+- **Ubuntu 22.04**, **ROS 2 Humble**
+- **Docker**, **Docker Compose v2**
+- **NVIDIA Container Toolkit** (GPU required)
+- (Recommended) **NVIDIA Driver 535+**
 
-1. **Ubuntu 22.04 & ROS Humble**
-2. **Docker**
-3. **NVIDIA-Docker toolkit**
-4. **Docker Compose**
+> When using GPU with GUI, you may need to configure X permissions/display settings.
 
-## Run
-
-```bash
-cd /home/{$USER}/RLForklift/docker
-
-## 1. Enter the container.
-docker exec -it forklift-lab-ros2 bash
-
-## 2. Run environment
-
-cd /workspace/isaac_forklift/examples/00_create_envs
-
-/workspace/isaaclab/isaaclab.sh -p scene_test1.py 
-
-## 3. Run train code
-
-cd /workspace/isaac_forklift/examples/01_train
-
-/workspace/isaaclab/isaaclab.sh -p train1.py 
-
-```
+---
 
 1. Set environment
 ![[Check] RL Env](figure/test2.png)
@@ -49,4 +38,3 @@ cd /workspace/isaac_forklift/examples/01_train
 ![[Check] Forklift articulation](figure/test6.gif)
 3. Set train code
 ![[Check] Train pipeline](figure/test9.gif)
-
